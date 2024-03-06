@@ -10,5 +10,6 @@ package gitpractica2;
  */
 public class pruebaa {
     String Nombre;
-    String Apellido;
+    String Apellidos;
+    
 }
