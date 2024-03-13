@@ -37,68 +37,30 @@ public class DAOMatriculasImplement implements DAOMatriculas {
         modeloTabla.setRowCount(0);
 
         try {
-            // Consulta para obtener cursos disponibles
-            ps1 = (PreparedStatement) con1.prepareStatement("SELECT c.curso_id, c.nombre_curso, COUNT(*) AS cantidad_secciones FROM cursos c JOIN secciones s ON c.curso_id = s.curso_id LEFT JOIN seccionxalumno sx ON s.seccion_id = sx.seccion_id AND sx.alumno_id = ? WHERE s.periodo_id = ? AND s.id_estado_seccion = 1 AND c.ciclo_curso = ? AND sx.seccion_id IS NULL  AND s.nroinscritos < 10 AND c.curso_id NOT IN (SELECT DISTINCT c2.curso_id FROM cursos c2 JOIN secciones s2 ON c2.curso_id = s2.curso_id JOIN seccionxalumno sx2 ON s2.seccion_id = sx2.seccion_id WHERE sx2.alumno_id = ?) GROUP BY c.curso_id, c.nombre_curso;");
+            ps1 = (PreparedStatement) con1.prepareStatement("SELECT c.curso_id, c.nombre_curso, COUNT(*) AS cantidad_resultados FROM cursos c JOIN secciones s ON c.curso_id = s.curso_id LEFT JOIN seccionxalumno sx ON s.seccion_id = sx.seccion_id AND sx.alumno_id = ? WHERE s.periodo_id = ? AND s.id_estado_seccion = 1 AND sx.seccion_id IS NULL  AND s.nroinscritos < 10 AND c.curso_id NOT IN (SELECT DISTINCT c2.curso_id FROM cursos c2 JOIN secciones s2 ON c2.curso_id = s2.curso_id JOIN seccionxalumno sx2 ON s2.seccion_id = sx2.seccion_id WHERE sx2.alumno_id = ?) AND ((c.curso_id NOT IN (SELECT DISTINCT curso_id FROM recordnotas WHERE alumno_id = ?)) OR (c.curso_id NOT IN (SELECT DISTINCT curso_id FROM recordnotas WHERE alumno_id = ? AND estado IN ('C', 'A')) AND c.curso_id IN (SELECT DISTINCT curso_id FROM recordnotas WHERE alumno_id = ? AND estado = 'D'))) AND (c.curso_desbloqueador_id = 0 OR EXISTS (SELECT 1 FROM cursos c_desbloq JOIN recordnotas rn ON c_desbloq.curso_id = rn.curso_id WHERE c.curso_desbloqueador_id = c_desbloq.curso_id AND rn.alumno_id = ? AND rn.estado IN ('A', 'C'))) GROUP BY c.curso_id, c.nombre_curso;");
             ps1.setInt(1, matri.getAlumnoid());
             ps1.setInt(2, matri.getPeriodoid());
-            ps1.setInt(3, matri.getCicloid());
+            ps1.setInt(3, matri.getAlumnoid());
             ps1.setInt(4, matri.getAlumnoid());
+            ps1.setInt(5, matri.getAlumnoid());
+            ps1.setInt(6, matri.getAlumnoid());
+            ps1.setInt(7, matri.getAlumnoid());
             rs1 = ps1.executeQuery();
             rsmd1 = rs1.getMetaData();
             columnas1 = rsmd1.getColumnCount();
 
             while (rs1.next()) {
-                int idCurso = rs1.getInt("curso_id");
-                if (!tieneCursoDesaprobado(idCurso)) {
-                    Object[] fila = new Object[columnas1];
-                    for (int indice = 0; indice < columnas1; indice++) {
-                        fila[indice] = rs1.getObject(indice + 1);
-                    }
-                    modeloTabla.addRow(fila);
+                Object[] fila = new Object[columnas1];
+                for (int indice = 0; indice < columnas1; indice++) {
+                    fila[indice] = rs1.getObject(indice + 1);
                 }
+                modeloTabla.addRow(fila);
             }
-            // Consulta para obtener cursos desaprobados
-            PreparedStatement ps2 = (PreparedStatement) con1.prepareStatement("SELECT r.curso_id, c.nombre_curso, COUNT(*) AS cantidad_secciones FROM recordnotas r JOIN cursos c ON r.curso_id = c.curso_id WHERE r.alumno_id = ? AND r.estado = 'D' GROUP BY r.curso_id, c.nombre_curso;");
-            ps2.setInt(1, matri.getAlumnoid());
-            ResultSet rs2 = ps2.executeQuery();
-
-            // Agregar cursos desaprobados a la tabla
-            while (rs2.next()) {
-                int idCursoDesaprobado = rs2.getInt("curso_id");
-                Object[] filaDesaprobado = {idCursoDesaprobado, rs2.getString("nombre_curso"), rs2.getInt("cantidad_secciones")};
-                modeloTabla.addRow(filaDesaprobado);
-            }
-
             con1.close();
         } catch (SQLException e) {
-            System.out.println("ERROR SQL: " + e);
+            System.out.println("ERRORSQL: " + e);
         }
     }
-
-private boolean tieneCursoDesaprobado(int cursoId) {
-    Connection con = Conexion.conect();
-    PreparedStatement ps;
-    ResultSet rs;
-
-    try {
-        ps = (PreparedStatement) con.prepareStatement("SELECT c.curso_desbloqueador_id, r.estado FROM cursos c LEFT JOIN recordnotas r ON c.curso_desbloqueador_id = r.curso_id WHERE c.curso_id = ?");
-        ps.setInt(1, cursoId);
-        rs = ps.executeQuery();
-
-        if (rs.next()) {
-            String estado = rs.getString("estado");
-            if (estado != null && estado.equals("D")) {
-                con.close();
-                return true;
-            }
-        }
-    
-    } catch (SQLException e) {
-        System.out.println("ERRORSQL: " + e);
-    }            
-    return false;
-}
-
 
     @Override
     public void CargarSeccionesDisponibles(Matriculas matri, JTable tabla) {
