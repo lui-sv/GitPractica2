@@ -75,46 +75,30 @@ public class DAOMatriculasImplement implements DAOMatriculas {
         }
     }
 
-    private boolean tieneCursoDesaprobado(int cursoId) {
-        Connection con = Conexion.conect();
-        PreparedStatement ps;
-        ResultSet rs;
+private boolean tieneCursoDesaprobado(int cursoId) {
+    Connection con = Conexion.conect();
+    PreparedStatement ps;
+    ResultSet rs;
 
-        try {
-            ps = (PreparedStatement) con.prepareStatement("SELECT * FROM cursos WHERE curso_id = ? AND curso_desbloqueador_id IS NOT NULL");
-            ps.setInt(1, cursoId);
-            rs = ps.executeQuery();
+    try {
+        ps = (PreparedStatement) con.prepareStatement("SELECT c.curso_desbloqueador_id, r.estado FROM cursos c LEFT JOIN recordnotas r ON c.curso_desbloqueador_id = r.curso_id WHERE c.curso_id = ?");
+        ps.setInt(1, cursoId);
+        rs = ps.executeQuery();
 
-            if (rs.next()) {
-                int cursoDesbloqueadorId = rs.getInt("curso_desbloqueador_id");
-                con.close();
-                return cursoDesaprobado(cursoDesbloqueadorId);
-            }
-        } catch (SQLException e) {
-            System.out.println("ERRORSQL: " + e);
-        }
-        return false;
-    }
-
-    private boolean cursoDesaprobado(int cursoId) {
-        Connection con = Conexion.conect();
-        PreparedStatement ps;
-        ResultSet rs;
-
-        try {
-            ps = (PreparedStatement) con.prepareStatement("SELECT * FROM recordnotas WHERE curso_id = ? AND estado = 'D'");
-            ps.setInt(1, cursoId);
-            rs = ps.executeQuery();
-
-            if (rs.next()) {
+        if (rs.next()) {
+            String estado = rs.getString("estado");
+            if (estado != null && estado.equals("D")) {
                 con.close();
                 return true;
             }
-        } catch (SQLException e) {
-            System.out.println("ERRORSQL: " + e);
         }
-        return false;
-    }
+    
+    } catch (SQLException e) {
+        System.out.println("ERRORSQL: " + e);
+    }            
+    return false;
+}
+
 
     @Override
     public void CargarSeccionesDisponibles(Matriculas matri, JTable tabla) {
